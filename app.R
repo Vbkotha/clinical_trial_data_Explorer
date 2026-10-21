@@ -3,6 +3,10 @@
 #   From a terminal:  APP_STUDY=STUDY-001 APP_ROLE=blinded Rscript -e 'shiny::runApp(".", port = 3838, host = "0.0.0.0")'
 # See R/auth.R for how the user and role are determined.
 
+# installs teal and the other packages on first start, then only checks versions
+source("install.R", local = TRUE)
+ensure_packages()
+
 library(teal)
 library(teal.modules.general)
 library(teal.modules.clinical)

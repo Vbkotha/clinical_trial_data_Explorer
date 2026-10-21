@@ -27,15 +27,13 @@ cd clinical_trial_data_Explorer
 
 You can also upload a zip of the repository and unzip it.
 
-### 2. Install packages (first time only)
+### 2. Start the app
 
-```bash
-Rscript install.R
-```
-
-This installs teal 1.2.1, teal.modules.clinical 0.14.0, teal.modules.general 0.9.0 and the other dependencies. It stops with a clear message if anything is missing or too old. If the session can only reach an internal mirror, set `TRIAL_EXPLORER_REPOS=https://your-mirror/...` first.
-
-### 3. Start the app
+There is no separate install step. On first start the app installs teal and its other packages into your R library, which takes a few minutes. Later starts only check versions.
+- teal packages come from the insightsengineering r-universe.
+- Everything else comes from CRAN, as precompiled Linux binaries from Posit Package Manager when the OS is recognised.
+- If the session can only reach an internal mirror, set `TRIAL_EXPLORER_REPOS=https://your-mirror/...` before starting.
+- To install ahead of time, run `Rscript install.R`.
 
 **RStudio session.** Open the project folder and run:
 
@@ -102,7 +100,7 @@ Rscript -e 'testthat::test_file("tests/test_core.R")'
 ```
 app.R                     teal app: init(), module tree, locked filter, role banner
 launch.R                  run_trial_explorer() / stop_trial_explorer() for notebook sessions
-install.R                 installs pinned package versions
+install.R                 ensure_packages(): installs missing packages on first start
 notebooks/                Jupyter (R kernel) launcher notebook
 config/                   studies, roles, graph presets
 R/                        auth, access/blinding, data module, analysis modules, synthetic data

@@ -24,6 +24,10 @@ app_dir_default <- function() {
 run_trial_explorer <- function(study = "STUDY-001", role = NULL, port = 3838,
                                host = "0.0.0.0", background = FALSE,
                                app_dir = .trial_explorer_dir, user = NULL) {
+  # install teal & co. here (first run only) so progress shows in the notebook
+  source(file.path(app_dir, "install.R"), local = TRUE)
+  ensure_packages()
+
   env <- c(APP_STUDY = study, APP_ROLE = .or_default(role, ""), APP_USER = .or_default(user, Sys.getenv("APP_USER")))
   do.call(Sys.setenv, as.list(env))
 
