@@ -31,6 +31,7 @@ STUDY-002:
   blinding: null                       # completed study: no blinding
 
 # ---- Your own study: copy this block, uncomment, and edit ----------------------
+# Full guide: docs/DATA_PREP.md
 # One file per dataset in data_dir, named after the dataset:
 #   adsl.sas7bdat | adsl.xpt | adsl.parquet | adsl.rds | adsl.csv  (same for adlb, adex, ...)
 # List only the datasets you have. ADSL is required. Check it with:

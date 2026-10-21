@@ -141,3 +141,11 @@ test_that("join keys only use columns the data has and link everything to ADSL",
   expect_equal(unname(jk["ADAE", "ADAE"]), c("STUDYID", "USUBJID", "AESEQ"))   # default has ASTDTM/AETERM, absent here
   expect_equal(unname(jk["ADSL", "ADDIARY"]), c("STUDYID", "USUBJID"))
 })
+
+test_that("days on drug uses each record's own duration", {
+  ex <- data.frame(USUBJID = "S1", AVAL = c(10, 0, 10), ASTDY = c(1, 15, 22), AENDY = c(14, 21, 24))
+  adsl <- data.frame(USUBJID = "S1", ARM = "A")
+  lb <- data.frame(USUBJID = "S1", PARAMCD = "PLAT", ADY = 1, AVAL = 200, BASE = 200)
+  s <- cohort_window_summary(adsl, ex, lb, NULL, "PLAT", c(1, 30), "days_on_drug", "nadir")
+  expect_equal(s$exposure, 14 + 3)
+})

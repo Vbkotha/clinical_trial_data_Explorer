@@ -89,7 +89,7 @@ Because whoever launches the app chooses the role, the blinded view only control
 
 ## Bring your own data
 
-The app reads ADaM-style datasets, one file per dataset, from a folder.
+The full guide, covering the variables per dataset, types, CSV rules, blinding config and troubleshooting, is **[docs/DATA_PREP.md](docs/DATA_PREP.md)**. In short, the app reads ADaM-style datasets, one file per dataset, from a folder.
 
 ### 1. Put the files in a folder
 
@@ -152,4 +152,5 @@ notebooks/                Jupyter (R kernel) launcher notebook
 config/                   studies, roles, graph presets
 R/                        auth, access/blinding, data loading and checks, analysis modules, synthetic data
 tests/test_core.R         unit tests
+docs/DATA_PREP.md         data preparation guide (bring your own data)
 ```

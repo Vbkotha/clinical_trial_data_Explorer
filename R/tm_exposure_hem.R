@@ -76,7 +76,7 @@ cohort_window_summary <- function(adsl, adex, adlb, adrs, param, window,
     expv <- vapply(split(ex, ex$USUBJID), function(d) switch(exposure_metric,
       cumulative_dose = sum(d$AVAL),
       dose_intensity  = sum(d$AVAL) / max(1, diff(range(c(d$ASTDY, d$AENDY))) + 1) * 7,
-      days_on_drug    = sum(d$AVAL > 0) * 7
+      days_on_drug    = sum((d$AENDY - d$ASTDY + 1)[d$AVAL > 0])
     ), numeric(1))
     out$exposure <- unname(expv[out$USUBJID])
   }
