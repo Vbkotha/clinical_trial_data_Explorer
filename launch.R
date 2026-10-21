@@ -40,20 +40,33 @@ run_trial_explorer <- function(study = "STUDY-001", role = NULL, port = 3838,
     return(shiny::runApp(app_dir, port = port, host = host, launch.browser = opener(open)))
   }
 
+  # replace a previous Trial Explorer on this port; refuse if something else holds it
+  if (length(.app_pids(port))) stop_trial_explorer(port)
+  if (is_up(port)) {
+    stop("Port ", port, " is already in use by another program. Use run_trial_explorer(port = <other>).", call. = FALSE)
+  }
+
   log <- file.path(state_dir_launch(), sprintf("app-%d.log", port))
-  # the --trial-explorer-port marker lets stop_trial_explorer() find the process
+  # the --trial-explorer-port marker lets stop_trial_explorer() find the process;
+  # R_LIBS hands the child this session's libraries so it loads the same packages
   expr <- sprintf("shiny::runApp('%s', port = %d, host = '%s', launch.browser = FALSE)", app_dir, port, host)
+  old_libs <- Sys.getenv("R_LIBS")
+  Sys.setenv(R_LIBS = paste(.libPaths(), collapse = .Platform$path.sep))
+  on.exit(Sys.setenv(R_LIBS = old_libs), add = TRUE)
   system2(file.path(R.home("bin"), "Rscript"), c("-e", shQuote(expr), paste0("--trial-explorer-port=", port)),
           stdout = log, stderr = log, wait = FALSE)
 
   message("Starting Trial Explorer in the background (log: ", log, ") ...")
-  for (i in 1:120) {                       # teal takes a few seconds to initialise
+  up <- FALSE
+  for (i in 1:300) {                       # first start may install packages
     Sys.sleep(1)
+    if (!length(.app_pids(port))) break     # process exited: startup failed
     if (up <- is_up(port)) break
   }
   if (!up) {
-    message("App did not respond within 2 minutes. Last log lines:")
-    message(paste(utils::tail(readLines(log, warn = FALSE), 20), collapse = "\n"))
+    message("Trial Explorer did not start. Last log lines:\n",
+            paste(utils::tail(readLines(log, warn = FALSE), 25), collapse = "\n"))
+    stop_trial_explorer(port, quiet = TRUE)
     return(invisible(FALSE))
   }
   print_urls(port)
@@ -62,10 +75,19 @@ run_trial_explorer <- function(study = "STUDY-001", role = NULL, port = 3838,
   invisible(TRUE)
 }
 
-stop_trial_explorer <- function(port = 3838) {
-  rc <- system(sprintf("pkill -f -- '--trial-explorer-port=%d'", port))
-  message(if (rc == 0) "Stopped." else "No background app found on that port.")
-  invisible(rc == 0)
+stop_trial_explorer <- function(port = 3838, quiet = FALSE) {
+  pids <- .app_pids(port)
+  if (length(pids)) tools::pskill(pids)
+  Sys.sleep(1)
+  if (!quiet) message(if (length(pids)) "Stopped." else "No background Trial Explorer found on that port.")
+  invisible(length(pids) > 0)
+}
+
+# PIDs of background apps started by run_trial_explorer() on this port
+.app_pids <- function(port) {
+  ps <- suppressWarnings(system("ps -eo pid=,args=", intern = TRUE))
+  hit <- grepl(sprintf("--trial-explorer-port=%d( |$)", port), ps) & grepl("runApp", ps, fixed = TRUE)
+  as.integer(sub("^\\s*([0-9]+).*", "\\1", ps[hit]))
 }
 
 # ---- helpers ------------------------------------------------------------------
