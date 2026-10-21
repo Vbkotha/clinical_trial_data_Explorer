@@ -1,7 +1,7 @@
-# Trial Explorer - teal app, one deployment per study.
-#   APP_STUDY=STUDY-001 Rscript -e 'shiny::runApp(".")'
-# Local dev without the platform proxy:
-#   APP_DEV_MODE=true DEV_USER=me@x.com DEV_GROUPS=study001-study-team APP_STUDY=STUDY-001 ...
+# Trial Explorer - teal app, one study per running instance.
+#   From a notebook:  source("launch.R"); run_trial_explorer("STUDY-001", role = "blinded")
+#   From a terminal:  APP_STUDY=STUDY-001 APP_ROLE=blinded Rscript -e 'shiny::runApp(".", port = 3838, host = "0.0.0.0")'
+# See R/auth.R for how the user and role are determined.
 
 library(teal)
 library(teal.modules.general)

@@ -19,6 +19,19 @@ resolve_role <- function(groups, study_id, roles_cfg) {
   NULL
 }
 
+#' Role for this run: explicit APP_ROLE, else groups via roles.yml (deny if no
+#' match), else the most restrictive role valid for the study.
+session_role <- function(ident, study_id, study_cfg, roles_cfg) {
+  if (!is.null(ident$role)) {
+    if (!ident$role %in% ROLE_PRECEDENCE) {
+      stop("Unknown APP_ROLE '", ident$role, "'. Use one of: ", paste(ROLE_PRECEDENCE, collapse = ", "))
+    }
+    return(ident$role)
+  }
+  if (length(ident$groups)) return(resolve_role(ident$groups, study_id, roles_cfg))
+  if (identical(study_cfg$status, "completed")) "viewer" else "blinded"
+}
+
 #' Build the data policy for a (study, role) pair.
 access_policy <- function(study_cfg, role) {
   stopifnot(!is.null(role))

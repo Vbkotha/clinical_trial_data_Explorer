@@ -1,31 +1,27 @@
-# Identity: who is the user and which IdP groups are they in?
+# Identity and role.
 #
-# The app trusts identity headers injected by the platform's authenticating
-# reverse proxy. That is only safe if the Shiny process is NOT reachable except
-# through that proxy (network policy / container ingress). Header names below
-# are placeholders -- confirm the real ones with the Lifebit platform team and
-# check they actually reach session$request in your Shiny Server setup.
+# The app runs inside an already-authenticated Lifebit workspace (notebook
+# session), so it does no authentication of its own. The user is the workspace
+# user (APP_USER, else the OS user) and the role is chosen at launch:
+#
+#   APP_ROLE   = unblinded | blinded | viewer   (explicit role), or
+#   APP_GROUPS = comma-separated groups mapped to a role via config/roles.yml
+#
+# With neither set, the most restrictive role for the study is used
+# (blinded for an ongoing study, viewer for a completed one).
+#
+# Note: whoever launches the app picks the role. Blinding here controls what the
+# app displays; it is only an access control if the workspace user cannot read
+# the underlying unblinded files directly.
 
-AUTH_USER_HEADER   <- Sys.getenv("AUTH_USER_HEADER",   "HTTP_X_AUTH_REQUEST_EMAIL")
-AUTH_GROUPS_HEADER <- Sys.getenv("AUTH_GROUPS_HEADER", "HTTP_X_AUTH_REQUEST_GROUPS")
-
-#' Resolve the current user's identity from the Shiny session.
-#' @return list(user = chr, groups = chr) or NULL if unauthenticated.
-get_identity <- function(session) {
-  req <- session$request
-  user   <- req[[AUTH_USER_HEADER]]
-  groups <- req[[AUTH_GROUPS_HEADER]]
-
-  # Local development only: never set APP_DEV_MODE in a deployed environment.
-  if (is.null(user) && identical(Sys.getenv("APP_DEV_MODE"), "true")) {
-    user   <- Sys.getenv("DEV_USER", "dev@example.com")
-    groups <- Sys.getenv("DEV_GROUPS", "")
-  }
-  if (is.null(user) || !nzchar(user)) return(NULL)
-
+#' @return list(user = chr, groups = chr, role = chr or NULL)
+get_identity <- function(session = NULL) {
+  user <- Sys.getenv("APP_USER", Sys.getenv("USER", "workspace-user"))
+  role <- Sys.getenv("APP_ROLE", "")
   list(
-    user   = user,
-    groups = parse_groups(groups)
+    user   = if (nzchar(user)) user else "workspace-user",
+    groups = parse_groups(Sys.getenv("APP_GROUPS", "")),
+    role   = if (nzchar(role)) role else NULL
   )
 }
 
@@ -33,4 +29,13 @@ parse_groups <- function(x) {
   if (is.null(x) || !nzchar(x)) return(character(0))
   g <- trimws(unlist(strsplit(x, "[,;]")))
   g[nzchar(g)]
+}
+
+#' Writable location for runtime state (audit log, saved graphs).
+#' Defaults to ~/.trial-explorer so the app also runs from a read-only checkout.
+state_dir <- function(...) {
+  root <- Sys.getenv("APP_STATE_DIR", file.path(path.expand("~"), ".trial-explorer"))
+  p <- file.path(root, ...)
+  dir.create(if (length(list(...))) dirname(p) else p, recursive = TRUE, showWarnings = FALSE)
+  p
 }

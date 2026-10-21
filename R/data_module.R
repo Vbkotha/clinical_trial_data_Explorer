@@ -45,19 +45,23 @@ study_data_module <- function(study_id, study_cfg, roles_cfg, audit = audit_log)
     server = function(id) {
       shiny::moduleServer(id, function(input, output, session) {
         ident  <- get_identity(session)
-        role   <- if (!is.null(ident)) resolve_role(ident$groups, study_id, roles_cfg)
-        policy <- if (!is.null(role)) access_policy(study_cfg, role)
+        err    <- NULL
+        role   <- tryCatch(session_role(ident, study_id, study_cfg, roles_cfg),
+                           error = function(e) { err <<- conditionMessage(e); NULL })
+        policy <- if (!is.null(role)) tryCatch(access_policy(study_cfg, role),
+                                               error = function(e) { err <<- conditionMessage(e); NULL })
 
-        audit(ident$user %||% "<anonymous>", study_id, role %||% "DENIED")
+        audit(ident$user %||% "<anonymous>", study_id, if (is.null(policy)) "DENIED" else role)
 
         # shared with analysis modules (role banner, module-level degradations)
-        set_access(session, list(user = ident$user, role = role, policy = policy,
+        set_access(session, list(user = ident$user, role = if (!is.null(policy)) role, policy = policy,
                                  study_id = study_id, study = study_cfg))
 
         output$status <- shiny::renderUI({
           if (is.null(policy)) {
             shiny::div(class = "alert alert-danger",
-                       "You do not have access to ", study_id, ". Contact the study data manager.")
+                       err %||% paste0("No role for ", study_id, " (APP_GROUPS matched nothing in config/roles.yml). ",
+                                       "Relaunch with APP_ROLE set."))
           }
         })
 
@@ -80,5 +84,5 @@ study_data_module <- function(study_id, study_cfg, roles_cfg, audit = audit_log)
 #' Point AUDIT_LOG at durable storage (or replace with the platform's audit API).
 audit_log <- function(user, study_id, role) {
   line <- sprintf("%s\t%s\t%s\t%s\n", format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"), user, study_id, role)
-  cat(line, file = Sys.getenv("AUDIT_LOG", "audit.log"), append = TRUE)
+  cat(line, file = Sys.getenv("AUDIT_LOG", state_dir("audit.log")), append = TRUE)
 }

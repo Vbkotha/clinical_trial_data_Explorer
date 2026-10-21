@@ -53,10 +53,12 @@ Why mask the data instead of hiding the UI: teal's data table, filter panel, "Sh
 
 > Assumption to confirm: "closed TFLs" means the final outputs are frozen and served as-is, and exploration on the locked data is still allowed. If exploration should be switched off for completed studies, drop the `analysis` group when `completed` is true in `app.R`.
 
-**Identity on the Lifebit platform:** `get_identity()` reads the user and group headers from `session$request`. The header names are placeholders, set with `AUTH_USER_HEADER` and `AUTH_GROUPS_HEADER`. Still to confirm with the platform team:
-1. which headers the platform proxy injects;
-2. that they reach `session$request` in your Shiny Server setup;
-3. that the app container can only be reached through that proxy, since trusting headers depends on it.
+**Identity on the Lifebit platform (current):** the app runs inside an already-authenticated Lifebit workspace and does no authentication of its own. `get_identity()` takes the user from `APP_USER` (else the OS user). The role comes from `APP_ROLE`, or from `APP_GROUPS` mapped through `config/roles.yml`. With neither set, it defaults to the most restrictive role for the study. Whoever launches the app picks the role, so blinding controls what the app shows. It is an access control only if the workspace user cannot read the unblinded files directly.
+
+**Later: per-user authentication.** To enforce roles per user, restore a proxy-header (or platform API) lookup in `get_identity()`. Nothing else needs to change. Before that, confirm with the platform team:
+1. which identity headers the platform proxy injects;
+2. that they reach `session$request` in the Shiny setup;
+3. that the app can only be reached through that proxy, since trusting headers depends on it.
 
 ## 3. Cross-dimension views (`tm_exposure_hem`)
 

@@ -1,0 +1,9 @@
+.Rhistory
+.RData
+.Rproj.user/
+.ipynb_checkpoints/
+# runtime state (default location is ~/.trial-explorer, these cover overrides)
+audit.log
+user_graphs/
+# demo TFLs are generated on first start of the synthetic completed study
+data/tfl/*/

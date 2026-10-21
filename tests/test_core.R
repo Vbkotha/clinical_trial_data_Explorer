@@ -73,3 +73,26 @@ test_that("every preset renders", {
     expect_silent(ggplot2::ggplot_build(p))
   }
 })
+
+test_that("session role: explicit APP_ROLE, groups, or most restrictive default", {
+  s1 <- studies[["STUDY-001"]]; s2 <- studies[["STUDY-002"]]
+  id <- function(role = NULL, groups = character(0)) list(user = "u", groups = groups, role = role)
+  expect_equal(session_role(id(), "STUDY-001", s1, roles), "blinded")
+  expect_equal(session_role(id(), "STUDY-002", s2, roles), "viewer")
+  expect_equal(session_role(id("unblinded"), "STUDY-001", s1, roles), "unblinded")
+  expect_equal(session_role(id(groups = "study001-dmc"), "STUDY-001", s1, roles), "unblinded")
+  expect_null(session_role(id(groups = "nobody"), "STUDY-001", s1, roles))
+  expect_error(session_role(id("admin"), "STUDY-001", s1, roles), "Unknown APP_ROLE")
+})
+
+test_that("identity comes from the workspace environment", {
+  withr_env <- function(vars, code) {
+    old <- Sys.getenv(names(vars), unset = NA); do.call(Sys.setenv, as.list(vars))
+    on.exit(for (n in names(old)) if (is.na(old[[n]])) Sys.unsetenv(n) else do.call(Sys.setenv, as.list(old[n])))
+    code
+  }
+  withr_env(c(APP_USER = "ana@lifebit.ai", APP_ROLE = "unblinded", APP_GROUPS = "a, b"), {
+    i <- get_identity()
+    expect_equal(i$user, "ana@lifebit.ai"); expect_equal(i$role, "unblinded"); expect_equal(i$groups, c("a", "b"))
+  })
+})

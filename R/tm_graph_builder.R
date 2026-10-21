@@ -55,7 +55,7 @@ build_graph <- function(df, spec) {
 load_presets <- function(path = "config/graph_presets.yml") yaml::read_yaml(path)
 
 user_library_path <- function(user) {
-  root <- Sys.getenv("GRAPH_LIBRARY_DIR", "user_graphs")
+  root <- Sys.getenv("GRAPH_LIBRARY_DIR", state_dir("user_graphs"))
   file.path(root, paste0(gsub("[^A-Za-z0-9._-]", "_", user), ".json"))
 }
 
