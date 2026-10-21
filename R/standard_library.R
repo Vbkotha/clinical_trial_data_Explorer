@@ -1,4 +1,4 @@
-# Standard TLG library from teal.modules.clinical / teal.modules.general.
+# Standard TLG library from teal.modules.clinical (needs R >= 4.4; skipped otherwise).
 # Argument style follows teal.modules.clinical 0.14.0 (teal.picks variables()/
 # values()/picks()). Older versions use choices_selected() - pin versions in renv.
 
@@ -10,8 +10,10 @@ standard_library <- function(datanames, lab_params = c("PLAT", "HGB", "WBC", "NE
       dataname = "ADSL",
       arm_var = v(choices = c("ARM", "ARMCD"), selected = "ARM"),
       summarize_vars = v(choices = c("AGE", "SEX", "SITEID"), selected = c("AGE", "SEX"))
-    ),
-    teal.modules.clinical::tm_g_lineplot(
+    )
+  )
+  if ("ADLB" %in% datanames) {
+    mods[[length(mods) + 1]] <- teal.modules.clinical::tm_g_lineplot(
       label = "Haematology over time",
       dataname = "ADLB",
       group_var = v(choices = c("ARM", "ARMCD"), selected = "ARM", multiple = FALSE),
@@ -22,7 +24,7 @@ standard_library <- function(datanames, lab_params = c("PLAT", "HGB", "WBC", "NE
         check_dataset = FALSE
       )
     )
-  )
+  }
   if ("ADAE" %in% datanames) {
     mods[[length(mods) + 1]] <- teal.modules.clinical::tm_t_events(
       label = "Adverse events by SOC / PT",

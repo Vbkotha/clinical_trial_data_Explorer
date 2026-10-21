@@ -12,6 +12,8 @@ library(teal)
 # teal.modules.clinical needs R >= 4.4; without it the "Standard outputs" group is skipped
 has_clinical <- requireNamespace("teal.modules.clinical", quietly = TRUE) &&
   requireNamespace("teal.picks", quietly = TRUE)
+# attach it (not just load): the code its modules generate uses %>% from the attached packages
+if (has_clinical) suppressPackageStartupMessages(library(teal.modules.clinical))
 
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
@@ -22,6 +24,7 @@ study     <- studies[[study_id]]
 if (is.null(study)) stop("Unknown APP_STUDY: ", study_id)
 
 completed <- identical(study$status, "completed")
+lab_params <- unlist(study$lab_params) %||% c("PLAT", "HGB", "WBC", "NEUT")   # ADLB PARAMCDs to feature
 
 # Demo only: generate locked TFLs for the synthetic completed study
 if (completed && identical(study$source, "synthetic") && !file.exists(file.path(study$tfl_dir, "manifest.csv"))) {
@@ -29,12 +32,13 @@ if (completed && identical(study$source, "synthetic") && !file.exists(file.path(
 }
 
 # ---- modules (static per deployment; access is enforced in the data) ----------
-analysis <- modules(
+study_datasets <- unlist(study$datasets)
+analysis <- do.call(modules, Filter(Negate(is.null), list(
   label = "Analysis",
-  tm_exposure_hem(),
-  tm_diary(),
+  if ("ADLB" %in% study_datasets) tm_exposure_hem(lab_params = lab_params),
+  if ("ADDIARY" %in% study_datasets) tm_diary(overlay_params = lab_params),
   tm_graph_builder(label = "Graph builder & presets")
-)
+)))
 
 app_modules <- list(
   tm_about(
@@ -46,7 +50,7 @@ app_modules <- list(
     footnotes = c("Access" = "Your role is set when the app is launched in this workspace; blinding is applied server-side before any data reaches the app.")
   ),
   if (completed) tm_closed_tfls(study_id, study$tfl_dir, study$locked_on),
-  if (has_clinical) standard_library(unlist(study$datasets)),
+  if (has_clinical) standard_library(study_datasets, lab_params = lab_params),
   analysis,
   tm_listings(label = "Data listings")
 )
@@ -55,7 +59,7 @@ app_modules <- do.call(modules, Filter(Negate(is.null), app_modules))
 # ---- filters: locked population flag (anchored + fixed => user cannot remove or change) ----
 filters <- teal_slices(
   teal_slice(dataname = "ADSL", varname = "SAFFL", selected = "Y", fixed = TRUE, anchored = TRUE),
-  teal_slice(dataname = "ADLB", varname = "PARAMCD", selected = c("PLAT", "HGB", "WBC", "NEUT")),
+  teal_slice(dataname = "ADLB", varname = "PARAMCD", selected = lab_params),
   count_type = "all"
 )
 

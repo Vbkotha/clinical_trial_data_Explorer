@@ -96,3 +96,48 @@ test_that("identity comes from the workspace environment", {
     expect_equal(i$user, "ana@lifebit.ai"); expect_equal(i$role, "unblinded"); expect_equal(i$groups, c("a", "b"))
   })
 })
+
+test_that("every column gets a label, existing labels are kept", {
+  source(file.path(root, "R", "data_module.R"))
+  df <- data.frame(AGE = 1:2, FOO = c("a", "b"))
+  attr(df$FOO, "label") <- "Kept"
+  out <- ensure_labels(df)
+  expect_equal(attr(out$AGE, "label"), "Age")
+  expect_equal(attr(out$FOO, "label"), "Kept")
+  masked <- lapply(apply_policy(ds, access_policy(studies[["STUDY-001"]], "blinded")), ensure_labels)
+  expect_equal(attr(masked$ADSL$ARM, "label"), "Description of Planned Arm")
+})
+
+test_that("data checker flags missing columns, lab params and ineffective blinding", {
+  source(file.path(root, "R", "check_data.R"))
+  s1 <- studies[["STUDY-001"]]
+  expect_equal(nrow(check_study_data(ds, s1)), 0)
+  bad <- ds; bad$ADLB$AVAL <- NULL; bad$ADSL$ARM <- NULL
+  r <- check_study_data(bad, s1)
+  expect_true(any(r$dataset == "ADLB" & r$level == "error" & grepl("AVAL", r$message)))
+  expect_true(any(r$dataset == "ADSL" & grepl("ARM", r$message)))
+  r <- check_study_data(ds, modifyList(s1, list(lab_params = c("PLAT", "XYZ"))))
+  expect_true(any(grepl("XYZ", r$message)))
+  noarm <- lapply(ds, function(d) d[setdiff(names(d), unlist(s1$blinding$mask_vars))])
+  expect_true(any(grepl("hide nothing", check_study_data(noarm, s1)$message)))
+  expect_true(any(check_study_data(ds["ADLB"], s1)$message == "ADSL is required (every other dataset joins to it)"))
+})
+
+test_that("files source reads csv with dates and orders response codes", {
+  source(file.path(root, "R", "check_data.R")); source(file.path(root, "R", "data_module.R"))
+  d <- tempfile(); dir.create(d)
+  adsl <- ds$ADSL; adsl$TRTSDT <- format(adsl$TRTSDT)
+  utils::write.csv(adsl, file.path(d, "adsl.csv"), row.names = FALSE)
+  adrs <- ds$ADRS; adrs$AVALC <- as.character(adrs$AVALC); saveRDS(adrs, file.path(d, "adrs.rds"))
+  out <- read_study_datasets("X", list(source = "files", data_dir = d, datasets = list("ADSL", "ADRS")))
+  expect_s3_class(out$ADSL$TRTSDT, "Date")
+  expect_equal(levels(out$ADRS$AVALC)[1], "CR")
+})
+
+test_that("join keys only use columns the data has and link everything to ADSL", {
+  skip_if_not_installed("teal.data")
+  source(file.path(root, "R", "data_module.R"))
+  jk <- build_join_keys(ds)
+  expect_equal(unname(jk["ADAE", "ADAE"]), c("STUDYID", "USUBJID", "AESEQ"))   # default has ASTDTM/AETERM, absent here
+  expect_equal(unname(jk["ADSL", "ADDIARY"]), c("STUDYID", "USUBJID"))
+})

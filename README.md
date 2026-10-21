@@ -87,7 +87,54 @@ Because whoever launches the app chooses the role, the blinded view only control
 | `APP_STATE_DIR` | environment: audit log and saved graphs | `~/.trial-explorer` |
 | `AUDIT_LOG`, `GRAPH_LIBRARY_DIR` | environment: override the individual paths | under `APP_STATE_DIR` |
 
-To use real data, set `source: files` and `data_dir:` in `config/studies.yml` to a folder of `adsl.parquet`, `adlb.sas7bdat`, `.xpt` or `.rds` files. Install `arrow` or `haven` with `TRIAL_EXPLORER_OPTIONAL=true Rscript install.R`.
+## Bring your own data
+
+The app reads ADaM-style datasets, one file per dataset, from a folder.
+
+### 1. Put the files in a folder
+
+Name each file after its dataset, in lower case: `adsl.sas7bdat`, `adlb.xpt`, `adae.parquet`, `adrs.rds`, `adex.csv` and so on.
+- **Supported formats:** SAS (`.sas7bdat`, `.xpt`), Parquet, RDS and CSV.
+- **CSV dates:** columns ending in `DT` are read as dates and columns ending in `DTM` as date-times. The other formats keep their own types.
+- **Extra packages:** SAS and XPT files need `haven`, and Parquet needs `arrow`. Install them with `TRIAL_EXPLORER_OPTIONAL=true Rscript install.R`.
+
+### 2. Check the variables
+
+Only ADSL is required. A module whose dataset is missing is left out: no ADDIARY means no Patient diary, no ADEX means no dose panel, and so on. Every dataset joins to ADSL on `STUDYID` and `USUBJID`.
+
+| Dataset | Required | Recommended (some views need these) |
+|---|---|---|
+| ADSL | `STUDYID`, `USUBJID`, `ARM` | `ARMCD`, `SAFFL` (the locked population filter keeps `SAFFL == "Y"`), `AGE`, `SEX`, `SITEID` |
+| ADLB | `STUDYID`, `USUBJID`, `PARAMCD`, `PARAM`, `AVAL`, `ADY` | `AVISIT`, `BASE`, `CHG`, `PCHG`, `ANRLO`, `ANRHI`, `ANRIND` |
+| ADEX | `STUDYID`, `USUBJID`, `AVAL` (dose), `ASTDY`, `AENDY` | `EXADJ` (for example "DOSE HELD") |
+| ADRS | `STUDYID`, `USUBJID`, `AVALC`, `ADY` | |
+| ADAE | `STUDYID`, `USUBJID` | `AEBODSYS`, `AEDECOD` |
+| ADDIARY | `STUDYID`, `USUBJID`, `DIARYSEQ`, `ADTM`, `ADY`, `DIARYCAT`, `DIARYTXT` | |
+
+A few things are handled for you:
+- Columns without a `label` attribute get a standard CDISC label, or their own name.
+- Response codes in ADRS are ordered from best (CR, PR, SD, PD) for "best response".
+- Join keys are built from the columns that are actually present.
+
+### 3. Add the study to `config/studies.yml`
+
+Copy the commented `MY-STUDY` block at the end of that file and set these fields:
+- **`data_dir`:** your folder.
+- **`datasets`:** the datasets you have.
+- **`lab_params`:** the ADLB `PARAMCD`s to feature (default `PLAT, HGB, WBC, NEUT`).
+- **`status`:** `ongoing` or `completed`.
+
+For an ongoing study, also set `blinding`. `mask_vars` must name the variables that reveal treatment in your data. Agree these with the unblinded statistician.
+
+### 4. Check it, then launch
+
+```r
+source("launch.R")
+check_trial_data("MY-STUDY")    # lists missing datasets/columns, unknown lab_params, blinding problems
+run_trial_explorer(study = "MY-STUDY", role = "blinded")
+```
+
+If there are errors, for example a required column is missing or none of the `mask_vars` exist in the data, the app stops with the same messages rather than starting.
 
 ## Tests
 
@@ -103,6 +150,6 @@ launch.R                  run_trial_explorer() / stop_trial_explorer() for noteb
 install.R                 ensure_packages(): installs missing packages on first start
 notebooks/                Jupyter (R kernel) launcher notebook
 config/                   studies, roles, graph presets
-R/                        auth, access/blinding, data module, analysis modules, synthetic data
+R/                        auth, access/blinding, data loading and checks, analysis modules, synthetic data
 tests/test_core.R         unit tests
 ```

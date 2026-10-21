@@ -90,6 +90,21 @@ stop_trial_explorer <- function(port = 3838, quiet = FALSE) {
   as.integer(sub("^\\s*([0-9]+).*", "\\1", ps[hit]))
 }
 
+#' Load a study's data as configured in config/studies.yml and report problems
+#' (missing datasets/columns, lab_params not in ADLB, blinding vars not present).
+check_trial_data <- function(study = "STUDY-001", app_dir = .trial_explorer_dir) {
+  e <- new.env()
+  for (f in list.files(file.path(app_dir, "R"), full.names = TRUE, pattern = "\\.R$")) sys.source(f, envir = e)
+  cfg <- yaml::read_yaml(file.path(app_dir, "config", "studies.yml"))[[study]]
+  if (is.null(cfg)) stop("No study '", study, "' in config/studies.yml")
+  if (identical(cfg$source, "files") && !grepl("^(/|~)", .or_default(cfg$data_dir, ""))) cfg$data_dir <- file.path(app_dir, cfg$data_dir)
+  ds <- e$read_study_datasets(study, cfg)
+  for (nm in names(ds)) message(sprintf("  %-8s %6d rows  %3d columns", nm, nrow(ds[[nm]]), ncol(ds[[nm]])))
+  rep <- e$check_study_data(ds, cfg)
+  if (!nrow(rep)) message("No problems found.") else print(rep, right = FALSE, row.names = FALSE)
+  invisible(rep)
+}
+
 # ---- helpers ------------------------------------------------------------------
 
 .or_default <- function(a, b) if (is.null(a) || !nzchar(a[1])) b else a

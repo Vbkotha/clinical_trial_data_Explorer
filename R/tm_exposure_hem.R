@@ -114,7 +114,7 @@ tm_exposure_hem <- function(label = "Exposure vs haematology",
           shiny::sliderInput(ns("window"), "Study-day window", min = 1, max = max_day, value = c(1, max_day)),
           shiny::conditionalPanel(sprintf("input['%s'] == 'patient'", ns("view")),
             shiny::selectizeInput(ns("subject"), "Subject", choices = NULL),
-            shiny::checkboxGroupInput(ns("params"), "Haematology parameters", lab_params, selected = lab_params[1:2])
+            shiny::checkboxGroupInput(ns("params"), "Haematology parameters", lab_params, selected = utils::head(lab_params, 2))
           ),
           shiny::conditionalPanel(sprintf("input['%s'] == 'cohort'", ns("view")),
             shiny::selectInput(ns("param"), "Lab parameter", lab_params),
@@ -135,6 +135,17 @@ tm_exposure_hem <- function(label = "Exposure vs haematology",
     server = function(id, data) {
       shiny::moduleServer(id, function(input, output, session) {
         has_exposure <- shiny::reactive("ADEX" %in% names(data()))
+
+        # size the study-day window to the data (once; later filter changes keep the user's window)
+        shiny::observeEvent(data(), once = TRUE, {
+          d <- data()
+          days <- c(d[["ADLB"]]$ADY, d[["ADRS"]]$ADY, if (has_exposure()) c(d[["ADEX"]]$ASTDY, d[["ADEX"]]$AENDY))
+          days <- days[is.finite(days)]
+          if (length(days)) {
+            rng <- c(floor(min(days)), ceiling(max(days)))
+            shiny::updateSliderInput(session, "window", min = rng[1], max = rng[2], value = rng)
+          }
+        })
 
         shiny::observe({
           ids <- unique(data()[["ADLB"]]$USUBJID)

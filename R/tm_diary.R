@@ -87,7 +87,19 @@ tm_diary <- function(label = "Patient diary", overlay_params = c("PLAT", "HGB"),
     },
     server = function(id, data) {
       shiny::moduleServer(id, function(input, output, session) {
-        diary <- shiny::reactive(data()[["ADDIARY"]])
+        diary <- shiny::reactive({
+          d <- data()[["ADDIARY"]]
+          shiny::validate(shiny::need(is.data.frame(d), "No diary data (ADDIARY) is available for this study or your role."))
+          d
+        })
+
+        shiny::observeEvent(diary(), once = TRUE, {
+          days <- diary()$ADY[is.finite(diary()$ADY)]
+          if (length(days)) {
+            rng <- c(floor(min(days)), ceiling(max(days)))
+            shiny::updateSliderInput(session, "ady", min = rng[1], max = rng[2], value = rng)
+          }
+        })
 
         shiny::observe({
           d <- diary()

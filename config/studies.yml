@@ -29,3 +29,23 @@ STUDY-002:
   tfl_dir: data/tfl/STUDY-002-final   # contains manifest.csv + locked PDF/RTF outputs
   locked_on: "2026-06-30"
   blinding: null                       # completed study: no blinding
+
+# ---- Your own study: copy this block, uncomment, and edit ----------------------
+# One file per dataset in data_dir, named after the dataset:
+#   adsl.sas7bdat | adsl.xpt | adsl.parquet | adsl.rds | adsl.csv  (same for adlb, adex, ...)
+# List only the datasets you have. ADSL is required. Check it with:
+#   source("launch.R"); check_trial_data("MY-STUDY")
+#
+# MY-STUDY:
+#   title: "MY-STUDY - short description"
+#   status: ongoing                     # ongoing | completed
+#   source: files
+#   data_dir: /mnt/session_data/my_study/adam    # absolute, or relative to the app folder
+#   datasets: [ADSL, ADLB, ADEX, ADRS, ADAE]
+#   lab_params: [PLAT, HGB, WBC, NEUT]  # ADLB PARAMCDs to feature (default: these four)
+#   tfl_dir: null                       # completed studies: folder with manifest.csv + final outputs
+#   blinding:                           # ongoing studies; agree this with the unblinded statistician
+#     mask_value: "BLINDED"
+#     mask_vars: [ARM, ARMCD, ACTARM, ACTARMCD, TRT01P, TRT01A, TRT01PN, TRT01AN]
+#     drop_datasets: [ADEX]
+#     restrict_free_text: true
