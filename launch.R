@@ -94,11 +94,15 @@ opener <- function(open) {
   if (open == "none" || !interactive()) return(FALSE)
   if (open == "viewer" && in_rstudio()) return(function(url) rstudioapi::viewer(url))
   function(url) {
-    # RStudio routes browseURL("http://localhost:...") to the Viewer, so open the
-    # proxied public URL instead (e.g. https://<workspace>/.../p/<id>/).
-    if (in_rstudio()) url <- tryCatch(rstudioapi::translateLocalUrl(url, absolute = TRUE), error = function(e) url)
-    message("Opening ", url, "  (if no tab appears, allow pop-ups or open this link)")
-    utils::browseURL(url)
+    # RStudio routes browseURL("http://localhost:...") to the Viewer. Its own
+    # "Run App > Run External" uses .rs.invokeShinyWindowExternal(), so use that.
+    external <- get0(".rs.invokeShinyWindowExternal", mode = "function")
+    if (in_rstudio()) {
+      proxied <- tryCatch(rstudioapi::translateLocalUrl(url, absolute = TRUE), error = function(e) url)
+      message("Trial Explorer is at: ", proxied,
+              "\n  (if no new tab opens, allow pop-ups for this site or paste the link into the address bar)")
+    }
+    if (!is.null(external)) external(url) else utils::browseURL(url)
   }
 }
 
