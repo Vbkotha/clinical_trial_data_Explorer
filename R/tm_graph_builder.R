@@ -71,7 +71,7 @@ tm_graph_builder <- function(label = "Graph builder", presets = load_presets(),
           shiny::selectInput(ns("source"), "Start from",
             c("Blank" = "", stats::setNames(paste0("preset:", names(presets)),
                                             paste("Preset:", vapply(presets, `[[`, "", "title"))))),
-          shiny::selectInput(ns("my"), "My saved graphs", choices = c("—" = "")),
+          shiny::selectInput(ns("my"), "My saved graphs", choices = c("(none)" = "")),
           shiny::hr(),
           shiny::selectInput(ns("dataset"), "Dataset", choices = NULL),
           shiny::selectInput(ns("geom"), "Geometry", GEOMS),
@@ -100,10 +100,11 @@ tm_graph_builder <- function(label = "Graph builder", presets = load_presets(),
 
         shiny::observe({
           dn <- Filter(function(n) is.data.frame(data()[[n]]), names(data()))
-          shiny::updateSelectInput(session, "dataset", choices = dn, selected = shiny::isolate(input$dataset) %||% dn[1])
+          cur <- shiny::isolate(input$dataset)
+          shiny::updateSelectInput(session, "dataset", choices = dn, selected = if (isTRUE(cur %in% dn)) cur else dn[1])
         })
         shiny::observe({
-          shiny::updateSelectInput(session, "my", choices = c("—" = "", names(my_lib())))
+          shiny::updateSelectInput(session, "my", choices = c("(none)" = "", names(my_lib())))
         })
 
         apply_spec <- function(spec) {

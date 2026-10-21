@@ -8,8 +8,10 @@ source("install.R", local = TRUE)
 ensure_packages()
 
 library(teal)
-library(teal.modules.general)
-library(teal.modules.clinical)
+
+# teal.modules.clinical needs R >= 4.4; without it the "Standard outputs" group is skipped
+has_clinical <- requireNamespace("teal.modules.clinical", quietly = TRUE) &&
+  requireNamespace("teal.picks", quietly = TRUE)
 
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
@@ -35,18 +37,18 @@ analysis <- modules(
 )
 
 app_modules <- list(
-  tm_front_page(
+  tm_about(
     label = "About",
-    header_text = c(
+    info = c(
       "Study"  = study$title,
       "Status" = if (completed) paste("Completed - database locked", study$locked_on) else "Ongoing - blinded views apply by role"
     ),
-    footnotes = c("Access" = "Your role is resolved from platform SSO groups; blinding is applied server-side before any data reaches this app.")
+    footnotes = c("Access" = "Your role is set when the app is launched in this workspace; blinding is applied server-side before any data reaches the app.")
   ),
   if (completed) tm_closed_tfls(study_id, study$tfl_dir, study$locked_on),
-  standard_library(unlist(study$datasets)),
+  if (has_clinical) standard_library(unlist(study$datasets)),
   analysis,
-  tm_data_table(label = "Data listings")
+  tm_listings(label = "Data listings")
 )
 app_modules <- do.call(modules, Filter(Negate(is.null), app_modules))
 

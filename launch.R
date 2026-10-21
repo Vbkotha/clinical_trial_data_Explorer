@@ -1,7 +1,8 @@
 # Launch Trial Explorer from a Lifebit notebook session (RStudio or Jupyter).
 #
 #   source("launch.R")
-#   run_trial_explorer(study = "STUDY-001", role = "blinded")                    # blocks; Stop / interrupt to quit
+#   run_trial_explorer(study = "STUDY-001", role = "blinded")                    # opens a browser tab; Stop to quit
+#   run_trial_explorer(study = "STUDY-001", role = "blinded", open = "viewer")   # RStudio Viewer pane instead
 #   run_trial_explorer(study = "STUDY-001", role = "unblinded", background = TRUE) # returns; app keeps running
 #   stop_trial_explorer()
 #
@@ -21,20 +22,22 @@ app_dir_default <- function() {
 #' @param role    "blinded", "unblinded" or "viewer". NULL = most restrictive role for the study.
 #' @param port    local port to serve on
 #' @param background run in a separate R process so the notebook stays usable
+#' @param open    "window" (new browser tab), "viewer" (RStudio Viewer pane) or "none"
 run_trial_explorer <- function(study = "STUDY-001", role = NULL, port = 3838,
-                               host = "0.0.0.0", background = FALSE,
+                               host = "0.0.0.0", background = FALSE, open = c("window", "viewer", "none"),
                                app_dir = .trial_explorer_dir, user = NULL) {
   # install teal & co. here (first run only) so progress shows in the notebook
   source(file.path(app_dir, "install.R"), local = TRUE)
   ensure_packages()
 
+  open <- match.arg(open)
   env <- c(APP_STUDY = study, APP_ROLE = .or_default(role, ""), APP_USER = .or_default(user, Sys.getenv("APP_USER")))
   do.call(Sys.setenv, as.list(env))
 
   if (!background) {
     message("Starting Trial Explorer on port ", port, " ...")
     print_urls(port)
-    return(shiny::runApp(app_dir, port = port, host = host, launch.browser = viewer_for(port)))
+    return(shiny::runApp(app_dir, port = port, host = host, launch.browser = opener(open)))
   }
 
   log <- file.path(state_dir_launch(), sprintf("app-%d.log", port))
@@ -54,6 +57,8 @@ run_trial_explorer <- function(study = "STUDY-001", role = NULL, port = 3838,
     return(invisible(FALSE))
   }
   print_urls(port)
+  o <- opener(open)
+  if (is.function(o)) o(sprintf("http://localhost:%d", port))
   invisible(TRUE)
 }
 
@@ -83,7 +88,13 @@ in_rstudio <- function() identical(Sys.getenv("RSTUDIO"), "1") && requireNamespa
   rstudioapi::isAvailable()
 
 # RStudio proxies local ports itself; open the app in the Viewer pane.
-viewer_for <- function(port) if (in_rstudio()) function(url) rstudioapi::viewer(url) else FALSE
+# In RStudio (incl. RStudio Server) browseURL() on a localhost URL opens a new
+# browser tab through RStudio's port proxy; viewer() keeps it in the Viewer pane.
+opener <- function(open) {
+  if (open == "none" || !interactive()) return(FALSE)
+  if (open == "viewer" && in_rstudio()) return(function(url) rstudioapi::viewer(url))
+  function(url) utils::browseURL(url)
+}
 
 print_urls <- function(port) {
   lines <- sprintf("  Local:   http://127.0.0.1:%d", port)

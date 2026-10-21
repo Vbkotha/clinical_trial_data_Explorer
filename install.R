@@ -11,24 +11,28 @@
 # OS is recognised (much faster than compiling). Set TRIAL_EXPLORER_REPOS to a
 # comma-separated list of repos to use an internal mirror instead.
 
+# Required: the core app (role-based blinding, analysis modules, TFL viewer, listings).
 trial_explorer_packages <- c(
-  # teal stack (versions the app was written and tested against)
-  teal = "1.2.1", teal.modules.general = "0.9.0", teal.modules.clinical = "0.14.0",
-  teal.picks = "0.3.1", teal.slice = "0.8.2", teal.data = "0.8.0",
-  # app dependencies
-  shiny = "1.8.0", ggplot2 = "3.5.0", DT = "0.31", yaml = "2.3.0", digest = "0.6.0",
+  teal = "1.2.1", teal.slice = "0.8.2", teal.data = "0.8.0",
+  shiny = "1.8.0", ggplot2 = "3.5.0", DT = "0.33", yaml = "2.3.0", digest = "0.6.0",
   jsonlite = "1.8.0", rlang = "1.1.0", testthat = "3.0.0", rstudioapi = "0.15.0"
 )
+# Optional: the "Standard outputs" group (demographics, AE table, lab line plot).
+# teal.modules.clinical and tern need R >= 4.4; on older R the group is left out.
+trial_explorer_clinical <- c(teal.modules.clinical = "0.14.0", teal.picks = "0.3.1")
 
-ensure_packages <- function(pkgs = trial_explorer_packages, optional = FALSE) {
+ensure_packages <- function(pkgs = trial_explorer_packages, optional = FALSE,
+                            clinical = getRversion() >= "4.4.0") {
   if (optional) pkgs <- c(pkgs, arrow = "0.0.0", haven = "0.0.0")   # for source: files
   todo <- .outdated(pkgs)
-  if (!length(todo)) return(invisible(TRUE))
+  todo_clinical <- if (clinical) .outdated(trial_explorer_clinical) else character(0)
+  stale <- .stale_dependencies(c(names(pkgs), names(trial_explorer_clinical)))
+  if (!length(todo) && !length(todo_clinical) && !length(stale)) return(invisible(TRUE))
 
   lib <- .writable_lib()
   repos <- .install_repos()
-  message("Trial Explorer: installing ", length(todo), " package(s) into ", lib,
-          " (first start only, this can take a few minutes): ", paste(todo, collapse = ", "))
+  message("Trial Explorer: installing ", length(c(todo, todo_clinical, stale)), " package(s) into ", lib,
+          " (first start only, this can take a few minutes): ", paste(c(todo, todo_clinical, stale), collapse = ", "))
   old <- options(repos = repos, HTTPUserAgent = .binary_user_agent(), Ncpus = max(1L, parallel::detectCores() - 1L))
   on.exit(options(old), add = TRUE)
 
@@ -42,12 +46,29 @@ ensure_packages <- function(pkgs = trial_explorer_packages, optional = FALSE) {
       lib = lib, repos = NULL, type = "source")
   }
 
-  utils::install.packages(todo, lib = lib, dependencies = c("Depends", "Imports", "LinkingTo"))
+  todo <- c(todo, stale)
+  if (length(todo)) utils::install.packages(todo, lib = lib, dependencies = c("Depends", "Imports", "LinkingTo"))
+  if (length(todo_clinical)) {
+    suppressWarnings(tryCatch(
+      utils::install.packages(todo_clinical, lib = lib, dependencies = c("Depends", "Imports", "LinkingTo")),
+      error = function(e) NULL))
+    if (length(.outdated(trial_explorer_clinical))) {
+      message("Trial Explorer: teal.modules.clinical could not be installed; ",
+              "starting without the 'Standard outputs' group.")
+    }
+  }
 
-  still <- .outdated(pkgs)
+  # install.packages() skips dependencies that are installed but too old; upgrade those
+  for (i in 1:3) {
+    stale <- .stale_dependencies(c(names(pkgs), names(trial_explorer_clinical)))
+    if (!length(stale)) break
+    utils::install.packages(stale, lib = lib, dependencies = c("Depends", "Imports", "LinkingTo"))
+  }
+
+  still <- c(.outdated(pkgs), .stale_dependencies(names(pkgs)))
   if (length(still)) {
     stop("Trial Explorer: these packages are missing or older than required: ",
-         paste(sprintf("%s (>= %s)", still, pkgs[still]), collapse = ", "),
+         paste(still, collapse = ", "),
          "\nCheck that this session can reach: ", paste(repos, collapse = ", "),
          "\n(or set TRIAL_EXPLORER_REPOS to a mirror it can reach)", call. = FALSE)
   }
@@ -59,6 +80,33 @@ ensure_packages <- function(pkgs = trial_explorer_packages, optional = FALSE) {
   names(pkgs)[vapply(names(pkgs), function(p) {
     v <- tryCatch(utils::packageVersion(p), error = function(e) NULL)
     is.null(v) || v < package_version(pkgs[[p]])
+  }, logical(1))]
+}
+
+# Installed packages (recursively from `roots`) whose installed version is below
+# what another installed package in the tree requires.
+.stale_dependencies <- function(roots) {
+  base <- rownames(utils::installed.packages(priority = "base"))
+  seen <- character(0); need <- list(); queue <- roots
+  while (length(queue)) {
+    p <- queue[1]; queue <- queue[-1]
+    if (p %in% seen || p %in% base) next
+    seen <- c(seen, p)
+    d <- suppressWarnings(utils::packageDescription(p, fields = c("Depends", "Imports", "LinkingTo")))
+    if (!is.list(d)) next                                     # not installed
+    x <- trimws(unlist(strsplit(gsub("\\s+", " ", paste(unlist(d), collapse = ",")), ",")))
+    x <- x[nzchar(x) & x != "NA"]
+    nm <- trimws(sub("\\(.*", "", x))
+    for (i in grep(">=", x)) {
+      v <- trimws(sub(".*>=\\s*([0-9.-]+).*", "\\1", x[i]))
+      if (is.null(need[[nm[i]]]) || package_version(v) > package_version(need[[nm[i]]])) need[[nm[i]]] <- v
+    }
+    queue <- c(queue, setdiff(nm, c("R", seen)))
+  }
+  need <- need[setdiff(names(need), c("R", base))]
+  names(need)[vapply(names(need), function(p) {
+    v <- tryCatch(utils::packageVersion(p), error = function(e) NULL)
+    !is.null(v) && v < package_version(need[[p]])
   }, logical(1))]
 }
 

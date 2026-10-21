@@ -16,7 +16,9 @@
 
 #' @return list(user = chr, groups = chr, role = chr or NULL)
 get_identity <- function(session = NULL) {
-  user <- Sys.getenv("APP_USER", Sys.getenv("USER", "workspace-user"))
+  user <- Sys.getenv("APP_USER")
+  if (!nzchar(user)) user <- Sys.getenv("USER")
+  if (!nzchar(user)) user <- Sys.info()[["user"]]
   role <- Sys.getenv("APP_ROLE", "")
   list(
     user   = if (nzchar(user)) user else "workspace-user",

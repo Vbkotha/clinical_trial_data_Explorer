@@ -42,7 +42,7 @@ source("launch.R")
 run_trial_explorer(study = "STUDY-001", role = "blinded")
 ```
 
-The app opens in the Viewer pane. Use the "Show in new window" button for a full browser tab, and press Stop (or Esc) to quit.
+The app opens in a new browser tab, through RStudio's port proxy. If your browser blocks the pop-up, allow pop-ups for the Lifebit site, or open the RStudio URL printed in the console. Press Stop (or Esc) in the console to quit. To keep it in the Viewer pane instead, pass `open = "viewer"`.
 
 **Jupyter session (R kernel).** Open `notebooks/launch_trial_explorer.ipynb` and run the cells. It starts the app in a background R process:
 
