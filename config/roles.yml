@@ -1,0 +1,15 @@
+# Maps identity-provider groups (from the platform's SSO header) to a study role.
+# Deny by default: a user in none of these groups gets no data.
+#
+# Roles:
+#   unblinded - full data (DMC / independent statistician / unblinded pharmacovigilance)
+#   blinded   - treatment-revealing variables masked, ADEX dropped, diary text hidden
+#   viewer    - completed studies only: final TFLs + locked data, but no diary free text
+
+STUDY-001:
+  unblinded: [study001-dmc, study001-unblinded-stats]
+  blinded:   [study001-study-team, study001-medical-monitor]
+
+STUDY-002:
+  unblinded: [study002-team, biostat-all]
+  viewer:    [clinops-all]

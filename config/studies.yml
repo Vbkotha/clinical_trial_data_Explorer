@@ -1,0 +1,31 @@
+# One entry per study. A deployment serves ONE study (APP_STUDY env var), so the
+# module list can be built from this config at startup.
+#
+# status: ongoing   -> blinding enforced per role; no final TFLs
+# status: completed -> database locked; final TFLs served read-only from tfl_dir
+
+STUDY-001:
+  title: "STUDY-001 - Drug X in relapsed haematological malignancy (Phase II)"
+  status: ongoing
+  source: synthetic            # synthetic | files
+  data_dir: null               # for source: files -> folder of .parquet / .sas7bdat / .rds
+  datasets: [ADSL, ADEX, ADLB, ADRS, ADAE, ADDIARY]
+  tfl_dir: null
+  blinding:
+    mask_value: "BLINDED"
+    # Variables that reveal treatment assignment. Masked in EVERY dataset that has them.
+    mask_vars: [ARM, ARMCD, ACTARM, ACTARMCD, TRT01P, TRT01A, TRT01PN, TRT01AN]
+    # Datasets that reveal treatment on their own (placebo dose = 0, PK levels, ...)
+    drop_datasets: [ADEX]
+    # Free-text sources that may contain unblinding information
+    restrict_free_text: true   # ADDIARY text hidden from blinded roles
+
+STUDY-002:
+  title: "STUDY-002 - Drug X dose-finding (Phase Ib) - database locked"
+  status: completed
+  source: synthetic
+  data_dir: null
+  datasets: [ADSL, ADEX, ADLB, ADRS, ADAE, ADDIARY]
+  tfl_dir: data/tfl/STUDY-002-final   # contains manifest.csv + locked PDF/RTF outputs
+  locked_on: "2026-06-30"
+  blinding: null                       # completed study: no blinding

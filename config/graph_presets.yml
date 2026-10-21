@@ -1,0 +1,46 @@
+# Curated standard graphs. Adding a standard graph = adding an entry here
+# (reviewed via pull request). Rendered by build_graph() in R/tm_graph_builder.R.
+# NB: keep "y" quoted - YAML 1.1 reads a bare y as boolean TRUE.
+
+plat_mean_by_arm:
+  title: "Mean platelet count over time by arm"
+  dataset: ADLB
+  geom: line
+  paramcd: [PLAT]
+  x: ADY
+  "y": AVAL
+  colour: ARM
+  summary: true
+
+heme_box_by_visit:
+  title: "Haematology parameters by visit"
+  dataset: ADLB
+  geom: boxplot
+  paramcd: [PLAT, HGB, WBC, NEUT]
+  x: AVISIT
+  "y": AVAL
+  facet: PARAMCD
+
+plat_spaghetti:
+  title: "Individual platelet trajectories"
+  dataset: ADLB
+  geom: line
+  paramcd: [PLAT]
+  x: ADY
+  "y": AVAL
+  group: USUBJID
+  colour: ARM
+
+response_by_visit:
+  title: "Overall response by assessment"
+  dataset: ADRS
+  geom: bar
+  x: ADY
+  colour: AVALC
+
+age_distribution:
+  title: "Age distribution"
+  dataset: ADSL
+  geom: histogram
+  x: AGE
+  colour: SEX
