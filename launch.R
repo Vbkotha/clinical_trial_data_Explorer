@@ -93,7 +93,13 @@ in_rstudio <- function() identical(Sys.getenv("RSTUDIO"), "1") && requireNamespa
 opener <- function(open) {
   if (open == "none" || !interactive()) return(FALSE)
   if (open == "viewer" && in_rstudio()) return(function(url) rstudioapi::viewer(url))
-  function(url) utils::browseURL(url)
+  function(url) {
+    # RStudio routes browseURL("http://localhost:...") to the Viewer, so open the
+    # proxied public URL instead (e.g. https://<workspace>/.../p/<id>/).
+    if (in_rstudio()) url <- tryCatch(rstudioapi::translateLocalUrl(url, absolute = TRUE), error = function(e) url)
+    message("Opening ", url, "  (if no tab appears, allow pop-ups or open this link)")
+    utils::browseURL(url)
+  }
 }
 
 print_urls <- function(port) {
